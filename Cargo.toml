@@ -1,0 +1,13 @@
+[package]
+name = "decibri-resampler"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "Apache-2.0"
+description = "Streaming sample-rate resampler for mono f32 audio."
+keywords = ["audio", "resampler", "resampling", "dsp", "sample-rate"]
+categories = ["multimedia::audio"]
+publish = false
+
+[dependencies]
+thiserror = "2"
