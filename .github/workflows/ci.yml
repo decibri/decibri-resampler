@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust"
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo fmt --all -- --check
+
+  test:
+    name: Test (${{ matrix.os }})
+    needs: lint
+    strategy:
+      fail-fast: false
+      # The golden-vector tests assert BIT-EXACT cross-platform output with NO
+      # tolerance: for the same input, every cell must produce byte-identical
+      # samples. This is unlike decibri's ORT golden anchors, which carry a 1e-4
+      # tolerance sized for cross-platform ONNX Runtime CPU-kernel drift. There
+      # is no ORT and no platform-dependent transcendental here, so running the
+      # same golden vectors across all four targets (x86-64 and aarch64, three
+      # operating systems) is what actually proves the "deterministic by
+      # construction" property the README states. No tolerance is relaxed on any
+      # platform, on any cell.
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust"
+      - run: cargo test --all-targets
+      # `cargo test --all-targets` does not run doctests, so the README usage
+      # example is exercised separately here.
+      - run: cargo test --doc
+
+  msrv:
+    name: MSRV (1.88)
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      # Pinned to 1.88, the crate's declared rust-version, to catch accidental
+      # use of a language or std feature newer than the floor. The crate uses
+      # `is_multiple_of` (stabilized in 1.87), which sits under the 1.88 floor,
+      # so the floor holds.
+      - uses: dtolnay/rust-toolchain@1.88
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust"
+      - run: cargo build --all-targets
+      - run: cargo test --all-targets
+
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust"
+      - run: cargo generate-lockfile
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - run: cargo audit
