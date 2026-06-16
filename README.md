@@ -2,6 +2,9 @@
 
 A streaming, anti-aliased sample-rate resampler for mono `f32` audio.
 
+<a href="https://crates.io/crates/decibri-resampler"><img src="https://img.shields.io/crates/v/decibri-resampler" alt="crates.io version"></a>&nbsp;
+<a href="https://github.com/decibri/decibri-resampler/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="Apache 2.0 License"></a>&nbsp;
+
 ## Properties
 
 - Streaming and stateful: processes successive chunks, carrying filter state across calls so chunk boundaries are invisible in the output.
