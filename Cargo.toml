@@ -1,6 +1,6 @@
 [package]
 name = "decibri-resampler"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.88"
 license = "Apache-2.0"
@@ -12,3 +12,4 @@ categories = ["multimedia::audio"]
 
 [dependencies]
 thiserror = "2"
+tracing = { version = "0.1", default-features = false, features = ["std"] }

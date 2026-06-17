@@ -19,6 +19,7 @@
 use crate::kernel;
 use crate::resampler::Resampler;
 use crate::ResamplerError;
+use tracing::{debug, warn};
 
 /// Phases the arbitrary-ratio general engine oversamples its prototype to.
 const GENERAL_PHASES: usize = 512;
@@ -346,10 +347,23 @@ impl PolyphaseResampler {
     /// rate pair is fixed for the lifetime of the instance.
     pub fn new(in_rate: u32, out_rate: u32) -> Result<Self, ResamplerError> {
         if in_rate == 0 || out_rate == 0 {
+            warn!(
+                in_rate = in_rate,
+                out_rate = out_rate,
+                error = "zero_sample_rate",
+                "rejected resampler construction"
+            );
             return Err(ResamplerError::ZeroSampleRate);
         }
 
         if in_rate == out_rate {
+            debug!(
+                in_rate = in_rate,
+                out_rate = out_rate,
+                path = "identity",
+                latency_samples = 0,
+                "constructed resampler"
+            );
             return Ok(Self {
                 engine: Engine::Identity,
                 flushed: false,
@@ -375,6 +389,14 @@ impl PolyphaseResampler {
             )
         };
         if taps > MAX_FILTER_TAPS {
+            warn!(
+                in_rate = in_rate,
+                out_rate = out_rate,
+                taps = taps,
+                max = MAX_FILTER_TAPS,
+                error = "rate_pair_unsupported",
+                "rejected resampler construction"
+            );
             return Err(ResamplerError::RatePairUnsupported { in_rate, out_rate });
         }
 
@@ -383,10 +405,30 @@ impl PolyphaseResampler {
         } else {
             Engine::General(GeneralEngine::new(in_rate, out_rate))
         };
-        Ok(Self {
+        let resampler = Self {
             engine,
             flushed: false,
-        })
+        };
+        debug!(
+            in_rate = in_rate,
+            out_rate = out_rate,
+            path = if use_exact { "exact" } else { "general" },
+            l = l,
+            m = m,
+            latency_samples = resampler.latency_samples(),
+            "constructed resampler"
+        );
+        Ok(resampler)
+    }
+
+    /// Engine path label for diagnostics: `"identity"`, `"exact"`, or
+    /// `"general"`. Metadata only; never carries sample data.
+    fn engine_path(&self) -> &'static str {
+        match &self.engine {
+            Engine::Identity => "identity",
+            Engine::Exact(_) => "exact",
+            Engine::General(_) => "general",
+        }
     }
 
     #[cfg(test)]
@@ -442,12 +484,14 @@ impl Resampler for PolyphaseResampler {
     }
 
     fn flush(&mut self, output: &mut Vec<f32>) {
+        let before = output.len();
         match &mut self.engine {
             Engine::Identity => {}
             Engine::Exact(e) => e.flush(output),
             Engine::General(e) => e.flush(output),
         }
         self.flushed = true;
+        debug!(tail = output.len() - before, "flushed resampler tail");
     }
 
     fn latency_samples(&self) -> usize {
@@ -469,6 +513,7 @@ impl Resampler for PolyphaseResampler {
             Engine::General(e) => e.reset(),
         }
         self.flushed = false;
+        debug!(path = self.engine_path(), "reset resampler state");
     }
 }
 

@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD033 MD041 MD059 -->
 # decibri-resampler
 
 A streaming, anti-aliased sample-rate resampler for mono `f32` audio.
@@ -14,6 +15,7 @@ A streaming, anti-aliased sample-rate resampler for mono `f32` audio.
 - Identity bypass at equal input and output rates: byte-identical passthrough with zero added latency.
 - No per-call heap allocation in steady state.
 - Exact handling of common integer-Hz conversions, with an arbitrary-ratio path for other rates.
+- Emits `tracing` diagnostics at construction, flush, and reset; attach a `tracing` subscriber to capture them.
 
 ## Usage
 
